@@ -1,0 +1,19 @@
+version: '3.7'
+services:
+  mqtt5:
+    image: eclipse-mosquitto
+    container_name: mqtt5
+    restart: always
+    expose:
+      - "1883"
+      - "9001"
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+  publisher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: publisher
+    depends_on:
+      - mqtt5
