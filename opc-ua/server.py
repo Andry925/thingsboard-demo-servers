@@ -122,8 +122,10 @@ if __name__ == "__main__":
     mydevice_var = mydevice.get_child(["{}:controller".format(idx), "{}:state".format(idx)])  # get proxy to our device state variable
     # create directly some objects and variables
     myobj = server.nodes.objects.add_object(idx, "MyObject")
-    myvar = myobj.add_variable(idx, "MyVariable", 6, ua.VariantType.Int16)
-    mysin = myobj.add_variable(idx, "MySin", 0, ua.VariantType.Float)
+    myvar = myobj.add_variable(idx, "Frequency", 6, ua.VariantType.Int16)
+    mysin = myobj.add_variable(idx, "Power", 0, ua.VariantType.Float)
+    temperature = myobj.add_variable(idx, "Temperature", 0, ua.VariantType.Int16)
+    humidity = myobj.add_variable(idx, "Humidity", 0, ua.VariantType.Int16)
     myvar.set_writable()    # Set MyVariable to be writable by clients
     mystringvar = myobj.add_variable(idx, "MyStringVariable", "Really nice string")
     mystringvar.set_writable()  # Set MyVariable to be writable by clients
@@ -132,7 +134,6 @@ if __name__ == "__main__":
     mydtvar = myobj.add_variable(idx, "MyDateTimeVar", datetime.utcnow())
     mydtvar.set_writable()    # Set MyVariable to be writable by clients
     myarrayvar = myobj.add_variable(idx, "myarrayvar", [6.7, 7.9])
-    myarrayvar = myobj.add_variable(idx, "myStronglytTypedVariable", ua.Variant([], ua.VariantType.UInt32))
     myprop = myobj.add_property(idx, "myproperty", "I am a property")
     mymethod = myobj.add_method(idx, "mymethod", func, [ua.VariantType.Int64], [ua.VariantType.Boolean])
     multiply_node = myobj.add_method(idx, "multiply", multiply, [ua.VariantType.Int64, ua.VariantType.Int64], [ua.VariantType.Int64])
@@ -148,3 +149,9 @@ if __name__ == "__main__":
 
     vup1 = VarIntUpdater(myvar)
     vup1.start()
+
+    vup2 = VarIntUpdater(temperature)
+    vup2.start()
+
+    vup3 = VarIntUpdater(humidity)
+    vup3.start()

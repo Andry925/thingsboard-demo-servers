@@ -1,11 +1,13 @@
 import random
 import time
+import json
 
 from paho.mqtt import client as mqtt_client
 
 
 broker = '127.0.0.1'
-port = 1883
+port = 1884
+topic = 'data/'
 # Generate a Client ID with the publish prefix.
 client_id = f'publish-{random.randint(0, 1000)}'
 
@@ -23,17 +25,24 @@ def connect_mqtt():
     return client
 
 
+def make_msg():
+    return json.dumps({
+        'frequency': random.randint(0, 100),
+        'power': random.randint(0, 100),
+        'temperature': random.randint(0, 100),
+        'humidity': random.randint(0, 100)
+    })
+
+
 def publish(client):
-    topics = ['data/voltage', 'data/humidity', 'data/temperature', 'data/frequency']
     while True:
-        for topic in topics:
-            msg = random.randint(0, 100)
-            result = client.publish(topic, msg)
-            status = result[0]
-            if status == 0:
-                print(f"Send `{msg}` to topic `{topic}`")
-            else:
-                print(f"Failed to send message to topic {topic}")
+        msg = make_msg()
+        result = client.publish(topic, msg)
+        status = result[0]
+        if status == 0:
+            print(f"Send `{msg}` to topic `{topic}`")
+        else:
+            print(f"Failed to send message to topic {topic}")
 
         time.sleep(1)
 

@@ -9,7 +9,7 @@ RUN pip3 install --no-cache --upgrade pip setuptools
 # Copy the application code and configuration
 ADD ./ /
 
-EXPOSE 1883
+EXPOSE 1884
 
 # Set environment variables
 ENV PATH="/root/.local/bin:$PATH"
@@ -24,6 +24,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip && \
 
 # Copy the remaining files
 COPY . .
+COPY mosquitto.conf /mosquitto/config/mosquitto.conf
 
 # Set the container command
 CMD ["sh", "-c", "mosquitto -c /mosquitto/config/mosquitto.conf & python3 publisher.py"]
