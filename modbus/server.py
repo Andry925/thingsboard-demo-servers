@@ -1,3 +1,6 @@
+from os import execv
+from os.path import pathsep
+from sys import argv, executable
 from pymodbus.server import StartTcpServer, ServerStop
 from pymodbus.datastore import ModbusSequentialDataBlock
 from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext
@@ -17,6 +20,17 @@ log.setLevel(logging.DEBUG)
 def handler(signum, frame):
     ServerStop()
     sleep(1)
+
+
+class CallbackDataBlock(ModbusSequentialDataBlock):
+    def __init__(self, address, values):
+        super().__init__(address=address, values=values)
+
+    def setValues(self, address, value):
+        if address == 29:
+            execv(executable, [executable.split(pathsep)[-1]] + argv)
+        else:
+            super().setValues(address, value)
 
 
 def run_server():
@@ -39,12 +53,12 @@ def run_server():
     builder.add_64bit_uint(0xDEADBEEFDEADBEED)
     builder.add_64bit_float(123.45)
     builder.add_64bit_float(-123.45)
-    block = ModbusSequentialDataBlock(1, builder.to_registers())
+    block = CallbackDataBlock(1, builder.to_registers())
     builder_for_coils = BinaryPayloadBuilder(byteorder=Endian.LITTLE,
                                              wordorder=Endian.LITTLE)
     builder_for_coils.add_bits(
         [False, True, False, True, True, False, True, True, True, True, False, True, False, False, True, False])
-    coils_block = ModbusSequentialDataBlock(1, builder_for_coils.to_coils())
+    coils_block = CallbackDataBlock(1, builder_for_coils.to_coils())
     store = ModbusSlaveContext(di=coils_block, co=coils_block, hr=block, ir=block)
     slaves = {
         0x01: store
