@@ -16,6 +16,7 @@ try:
 except ImportError:
     import code
 
+
     def embed():
         myvars = globals()
         myvars.update(locals())
@@ -50,7 +51,7 @@ def func(parent, variant):
 # uses a decorator to automatically convert to and from variants
 
 @uamethod
-def multiply(parent, x, y):
+def multiply(x, y):
     print("multiply method call with parameters: ", x, y)
     return x * y
 
@@ -97,13 +98,36 @@ if __name__ == "__main__":
     server.set_server_name("FreeOpcUa Example Server")
     # set all possible endpoint policies for clients to connect through
     server.set_security_policy([
-                ua.SecurityPolicyType.NoSecurity,
-                ua.SecurityPolicyType.Basic256Sha256_SignAndEncrypt,
-                ua.SecurityPolicyType.Basic256Sha256_Sign])
+        ua.SecurityPolicyType.NoSecurity,
+        ua.SecurityPolicyType.Basic256Sha256_SignAndEncrypt,
+        ua.SecurityPolicyType.Basic256Sha256_Sign])
 
     # setup our own namespace
     uri = "http://examples.freeopcua.github.io"
     idx = server.register_namespace(uri)
+
+    # DEVICES FOR BLACKBOX TESTS ---------------------------------------------------------------------------------------
+    idx_for_tests = server.register_namespace("http://test.gateway.io")
+    test_device = server.nodes.objects.add_object(idx_for_tests, "TempSensor")
+    hum_var = test_device.add_variable("ns=3; s=Humidity", "Humidity", 60.5)
+    hum_var.set_writable()
+    press_var = test_device.add_variable(idx_for_tests, "Pressure", 1013.25)
+    press_var.set_writable()
+    test_device.add_variable("ns=3; b=Status", "Status", "OK")
+    alarm_var = test_device.add_variable(ua.GuidNodeId(uuid.UUID("BAEAF004-1E43-4A06-9EF0-E52010D5CD10"), 3), "Alarm",
+                                         True)
+    alarm_var.set_writable()
+    alarm_var.add_variable(idx_for_tests, "AlarmCode", 1234)
+    hum_var.add_reference(ua.ObjectIds.AnalogItemType, ua.ObjectIds.HasTypeDefinition)
+    test_device.add_method(idx_for_tests, "multiply", multiply, [ua.VariantType.Int64, ua.VariantType.Int64],
+                           [ua.VariantType.Int64])
+
+    test_device_s = server.nodes.objects.add_object("ns=3; s=TempSensor_S", "TempSensor_S")
+    test_device_s.add_variable("ns=3; s=Humidity_S", "Humidity", 243.5)
+    test_device_s.add_variable(idx_for_tests, "Pressure_S", 23455.25)
+    test_device_s.add_variable("ns=3; b=Status_S", "Status", "ERROR")
+    test_device_s.add_variable(ua.GuidNodeId(uuid.UUID("BAEAF004-1E43-4A06-9EF0-E52010D5CD12"), 3), "Alarm", False)
+    # ------------------------------------------------------------------------------------------------------------------
 
     # create a new node type we can instantiate in our address space
     dev = server.nodes.base_object_type.add_object_type(idx, "MyDevice")
@@ -119,24 +143,26 @@ if __name__ == "__main__":
     myfolder = server.nodes.objects.add_folder(idx, "myEmptyFolder")
     # instanciate one instance of our device
     mydevice = server.nodes.objects.add_object(idx, "Device0001", dev)
-    mydevice_var = mydevice.get_child(["{}:controller".format(idx), "{}:state".format(idx)])  # get proxy to our device state variable
+    mydevice_var = mydevice.get_child(
+        ["{}:controller".format(idx), "{}:state".format(idx)])  # get proxy to our device state variable
     # create directly some objects and variables
     myobj = server.nodes.objects.add_object(idx, "MyObject")
     myvar = myobj.add_variable(idx, "Frequency", 6, ua.VariantType.Int16)
     mysin = myobj.add_variable(idx, "Power", 0, ua.VariantType.Float)
     temperature = myobj.add_variable(idx, "Temperature", 0, ua.VariantType.Int16)
     humidity = myobj.add_variable(idx, "Humidity", 0, ua.VariantType.Int16)
-    myvar.set_writable()    # Set MyVariable to be writable by clients
+    myvar.set_writable()  # Set MyVariable to be writable by clients
     mystringvar = myobj.add_variable(idx, "MyStringVariable", "Really nice string")
     mystringvar.set_writable()  # Set MyVariable to be writable by clients
     myguidvar = myobj.add_variable(NodeId(uuid.UUID('1be5ba38-d004-46bd-aa3a-b5b87940c698'), idx, NodeIdType.Guid),
                                    'MyStringVariableWithGUID', 'NodeId type is guid')
     mydtvar = myobj.add_variable(idx, "MyDateTimeVar", datetime.utcnow())
-    mydtvar.set_writable()    # Set MyVariable to be writable by clients
+    mydtvar.set_writable()  # Set MyVariable to be writable by clients
     myarrayvar = myobj.add_variable(idx, "myarrayvar", [6.7, 7.9])
     myprop = myobj.add_property(idx, "myproperty", "I am a property")
     mymethod = myobj.add_method(idx, "mymethod", func, [ua.VariantType.Int64], [ua.VariantType.Boolean])
-    multiply_node = myobj.add_method(idx, "multiply", multiply, [ua.VariantType.Int64, ua.VariantType.Int64], [ua.VariantType.Int64])
+    multiply_node = myobj.add_method(idx, "multiply", multiply, [ua.VariantType.Int64, ua.VariantType.Int64],
+                                     [ua.VariantType.Int64])
 
     myevgen = server.get_event_generator()
     myevgen.event.Severity = 3000
