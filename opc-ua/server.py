@@ -51,7 +51,7 @@ def func(parent, variant):
 # uses a decorator to automatically convert to and from variants
 
 @uamethod
-def multiply(x, y):
+def multiply(_, x, y):
     print("multiply method call with parameters: ", x, y)
     return x * y
 
@@ -113,8 +113,9 @@ if __name__ == "__main__":
     hum_var.set_writable()
     press_var = test_device.add_variable(idx_for_tests, "Pressure", 1013.25)
     press_var.set_writable()
-    test_device.add_variable("ns=3; b=Status", "Status", "OK")
-    alarm_var = test_device.add_variable(ua.GuidNodeId(uuid.UUID("BAEAF004-1E43-4A06-9EF0-E52010D5CD10"), 3), "Alarm",
+    test_device.add_variable(idx_for_tests, 'SomeText', "SomeText")
+    e = test_device.add_variable(ua.ByteStringNodeId("MyNodeId".encode('utf-8'), namespace=3), "MyNodeId", 12.2)
+    alarm_var = test_device.add_variable(ua.GuidNodeId(uuid.UUID("018dd02c-fd22-754a-b6d3-5fcae91cd38d"), 3), "Alarm",
                                          True)
     alarm_var.set_writable()
     alarm_var.add_variable(idx_for_tests, "AlarmCode", 1234)
@@ -122,11 +123,28 @@ if __name__ == "__main__":
     test_device.add_method(idx_for_tests, "multiply", multiply, [ua.VariantType.Int64, ua.VariantType.Int64],
                            [ua.VariantType.Int64])
 
-    test_device_s = server.nodes.objects.add_object("ns=3; s=TempSensor_S", "TempSensor_S")
-    test_device_s.add_variable("ns=3; s=Humidity_S", "Humidity", 243.5)
-    test_device_s.add_variable(idx_for_tests, "Pressure_S", 23455.25)
-    test_device_s.add_variable("ns=3; b=Status_S", "Status", "ERROR")
-    test_device_s.add_variable(ua.GuidNodeId(uuid.UUID("BAEAF004-1E43-4A06-9EF0-E52010D5CD12"), 3), "Alarm", False)
+    test_device_s = server.nodes.objects.add_object("ns=4; s=TempSensor_S", "TempSensor_S")
+    hum_var_1 = test_device_s.add_variable("ns=4; s=Humidity_S", "Humidity", 243.5)
+    hum_var_1.set_writable()
+    press_var_1 = test_device_s.add_variable(idx_for_tests, "Pressure_S", 23455.25)
+    press_var_1.set_writable()
+    status_var_1 = test_device_s.add_variable("ns=4; b=Status_S", "Status", "ERROR")
+    status_var_1.set_writable()
+    alarm_var_1 = test_device_s.add_variable(ua.GuidNodeId(uuid.UUID("BAEAF004-1E43-4A06-9EF0-E52010D5CD12"), 4),
+                                             "Alarm", False)
+    alarm_var_1.set_writable()
+
+    test_device_g = server.nodes.objects.add_object(
+        ua.GuidNodeId(uuid.UUID("018dd02c-fd22-754a-b6d3-5fcae91cd39d"), 5), "TempSensor_G")
+    hum_var_2 = test_device_g.add_variable("ns=5; s=Humidity_S", "Humidity", 243.5)
+    hum_var_2.set_writable()
+    press_var_2 = test_device_g.add_variable(idx_for_tests, "Pressure_S", 23455.25)
+    press_var_2.set_writable()
+    status_var_2 = test_device_g.add_variable("ns=5; b=Status_S", "Status", "ERROR")
+    status_var_2.set_writable()
+    alarm_var_2 = test_device_g.add_variable(ua.GuidNodeId(uuid.UUID("BAEAF004-1E43-4A06-9EF0-E52010D5CD12"), 5),
+                                             "Alarm", False)
+    alarm_var_1.set_writable()
     # ------------------------------------------------------------------------------------------------------------------
 
     # create a new node type we can instantiate in our address space
