@@ -1,5 +1,6 @@
 from os import execv
 from os.path import pathsep
+import random
 from sys import argv, executable
 from pymodbus.server import StartTcpServer, ServerStop
 from pymodbus.datastore import ModbusSequentialDataBlock
@@ -9,6 +10,7 @@ from pymodbus.payload import BinaryPayloadBuilder
 from time import sleep
 import signal
 import logging
+from threading import Thread
 
 FORMAT = ('%(asctime)-15s %(threadName)-15s'
           ' %(levelname)-8s %(module)-15s:%(lineno)-8s %(message)s')
@@ -33,7 +35,7 @@ class CallbackDataBlock(ModbusSequentialDataBlock):
             super().setValues(address, value)
 
 
-def run_server():
+def create_store_for_tests():
     builder = BinaryPayloadBuilder(byteorder=Endian.LITTLE,
                                    wordorder=Endian.LITTLE)
     builder.add_string('abcd')
@@ -60,10 +62,49 @@ def run_server():
         [False, True, False, True, True, False, True, True, True, True, False, True, False, False, True, False])
     coils_block = CallbackDataBlock(1, builder_for_coils.to_coils())
     store = ModbusSlaveContext(di=coils_block, co=coils_block, hr=block, ir=block)
+    return store
+
+
+def create_initial_values(initial_values):
+    return (list(initial_values) or []) + [0] * (16 - len(initial_values or []))
+
+
+def create_store_for_emulator():
+    block = ModbusSequentialDataBlock(1, create_initial_values([265, 300, 1123, 90]))
+    return ModbusSlaveContext(hr=block)
+
+
+def as_int(value):
+    return int(round(value, 1) * 10)
+
+
+def emulate_values(store):
+    while True:
+        temperature = random.uniform(25.0, 35.0)
+        humidity = 100 - (temperature - 5) * 2.5
+        power = random.uniform(9.00, 12.00)
+        pressure = 1100 - (temperature - 25) * 10
+
+        store.setValues(6, 0, [as_int(temperature)])
+        store.setValues(6, 1, [as_int(humidity)])
+        store.setValues(6, 2, [as_int(power)])
+        store.setValues(6, 3, [as_int(pressure)])
+
+        sleep(1)
+
+
+def run_server():
+    store_for_tests = create_store_for_tests()
+    store_for_emulator = create_store_for_emulator()
     slaves = {
-        0x01: store
+        0x01: store_for_emulator,
+        0x02: store_for_tests
     }
     context = ModbusServerContext(slaves=slaves, single=False)
+
+    emulation_thread = Thread(target=emulate_values, args=(store_for_emulator,), daemon=True, name='emulation_thread')
+    emulation_thread.start()
+
     StartTcpServer(context=context, address=("0.0.0.0", 5021))
 
 
