@@ -53,7 +53,30 @@ def func(parent, variant):
 @uamethod
 def multiply(_, x, y):
     print("multiply method call with parameters: ", x, y)
-    return x * y
+    return ua.Variant(x * y, ua.VariantType.Int64)
+
+
+@uamethod
+def set_relay_state(_, state):
+    print("set_relay_state method call with parameters: ", state)
+    try:
+        state = bool(state)
+        relay.set_value(state)
+        return ua.Variant(True, ua.VariantType.Boolean)
+    except Exception as e:
+        print("Error setting relay state:", e)
+        return ua.Variant(False, ua.VariantType.Boolean)
+
+
+@uamethod
+def get_relay_state(_):
+    print("get_relay_state method call")
+    try:
+        state = relay.get_value()
+        return ua.Variant(state, ua.VariantType.Boolean)
+    except Exception as e:
+        print("Error getting relay state:", e)
+        return ua.Variant(False, ua.VariantType.Boolean)
 
 
 class VarSinUpdater(Thread):
@@ -165,6 +188,11 @@ if __name__ == "__main__":
         ["{}:controller".format(idx), "{}:state".format(idx)])  # get proxy to our device state variable
     # create directly some objects and variables
     myobj = server.nodes.objects.add_object(idx, "MyObject")
+    relay = myobj.add_variable(idx, "Relay", False, ua.VariantType.Boolean)
+    relay.set_writable()  # Set Relay to be writable by clients
+    set_relay_node = myobj.add_method(idx, "set_relay", set_relay_state, [ua.VariantType.Boolean],
+                                      [ua.VariantType.Boolean])
+    get_relay_node = myobj.add_method(idx, "get_relay", get_relay_state, [], [ua.VariantType.Boolean])
     myvar = myobj.add_variable(idx, "Frequency", 6, ua.VariantType.Int16)
     mysin = myobj.add_variable(idx, "Power", 0, ua.VariantType.Float)
     temperature = myobj.add_variable(idx, "Temperature", 0, ua.VariantType.Int16)
