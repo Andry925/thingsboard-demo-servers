@@ -72,7 +72,7 @@ def create_initial_values(initial_values):
 def create_store_for_emulator():
     block = ModbusSequentialDataBlock(1, create_initial_values([265, 300, 1123, 90]))
     old_block = ModbusSequentialDataBlock(1, create_initial_values([0, 0, 0, 0, 3450, 0, 0, 0, 24233]))
-    return ModbusSlaveContext(hr=block, ir=old_block)
+    return ModbusSlaveContext(hr=block, ir=old_block, co=ModbusSequentialDataBlock(1, [False] * 16),)
 
 
 def as_int(value):
