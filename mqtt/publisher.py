@@ -1,6 +1,5 @@
 import time
 import json, random, struct
-
 from paho.mqtt import client as mqtt_client
 
 BROKER = '127.0.0.1'
@@ -11,9 +10,8 @@ DEVICE_NAME = "Demo Device"
 SERIAL_NUMBER = "SN-001"
 SENSOR_NAME = "Thermo-A"
 SENSOR_TYPE = "Thermometer"
+CUSTOM_DEVICE_NAME = "AN-1"
 SENSOR_MODEL = "T-1000"
-USERNAME = "username"
-PASSWORD = "username"
 DEVICE_NAME_FROM_RAW_BYTES = "AM-1"
 
 relay = False
@@ -26,11 +24,11 @@ def on_connect(client, userdata, flags, rc):
 
         # Original subscriptions
         client.subscribe("data/get_light_level")
+        client.subscribe("data/set_light_level")
         client.subscribe("sensor/request/setRelay")
         client.subscribe(f"sensor/{DEVICE_NAME}/request/getRelay/+")
         client.subscribe(f"devices/{DEVICE_NAME}/attrs")
-
-        # Optional: listen for attribute request demo
+        client.subscribe('sensor/+/request/+/+')
         client.subscribe("v1/devices/me/attributes/request")
         req = {"relay": "relay"}
         client.publish("v1/devices/me/attributes/request", json.dumps(req), )
@@ -43,10 +41,10 @@ def generate_messages():
         "temp": round(random.uniform(18.0, 28.0), 2),
         "hum": round(random.uniform(30.0, 70.0), 2),
         "current": round(random.uniform(0.1, 3.0), 2),
-        "Temp_1": round(random.uniform(18.0, 28.0), 2),
         "energy": round(random.uniform(100.0, 200.0), 2),
         "power": round(random.uniform(10.0, 500.0), 2),
         "pf": round(random.uniform(0.7, 1.0), 2),
+        "battery": round(random.uniform(30.0, 90.0), 2),
 
     }
 
@@ -95,10 +93,40 @@ def on_message(client, userdata, message):
         try:
             print(f"Received RPC request `{payload.decode()}` from `{topic}` topic")
             reply_topic = json_data.split(";")[1].split("=")[1]
-            light_level = random.randint(0, 100)
             client.publish(reply_topic, json.dumps({"light_level": light_level}))
         except Exception as e:
             print(f"[RPC] bad format for get_light_level: err={e}")
+
+    elif topic == "data/set_light_level":
+        json_data = parse_incoming_payload_data(payload)
+        try:
+            print(f"Received RPC request `{payload.decode()}` from `{topic}` topic")
+            light_level = json_data
+
+            client.publish("data/response", json.dumps({"light_level": light_level}))
+
+        except Exception as e:
+            print(f"[RPC] bad format for set_light_level: err={e}")
+
+
+    elif topic.startswith('sensor') and '/request/' in topic:
+        print('This is custom a Two-way RPC call. Going to reply now!')
+        try:
+            json_payload = json.loads(payload)
+            request_id = topic.split('/')[-1]
+            light_level = json.dumps(json.dumps({"light_level": light_level}))
+            print('Sending a response message: ' + light_level)
+            client.publish(f"sensor/{json_payload['deviceName']}/response/{json_payload['methodName']}/{request_id}",
+                           light_level)
+            print('Sent a response message: ' + light_level)
+        except Exception as e:
+            print(f"[RPC] bad format to handle: err={e}")
+
+
+def be_bytes(value: int, length: int) -> bytes:
+    value = max(0, int(value))
+    maxv = (1 << (8 * length)) - 1
+    return min(value, maxv).to_bytes(length, byteorder='little')
 
 
 def publish(client):
@@ -129,25 +157,28 @@ def publish(client):
         "hum": messages["hum"]
     }))
 
-    name4 = (DEVICE_NAME_FROM_RAW_BYTES[:4]).encode("ascii", errors="ignore").ljust(4, b"_")
-    raw = name4 + struct.pack(">f", messages["temp"])  # 4 + 4 bytes
-    client.publish("sensor/raw_data", raw)
+    temperature = str(random.randint(20, 30))
+    whole_data = DEVICE_NAME_FROM_RAW_BYTES + temperature
+    frame = bytes(whole_data, 'utf-8')
+    client.publish("sensor/raw_data", frame)
 
-    client.publish(f"custom/sensors/{SENSOR_NAME}", json.dumps({
-        "temperature": messages["temp"],
-        "humidity": messages["hum"],
-        "batteryLevel": random.randint(20, 100)
-    }))
+    temp_scaled = int(round(messages["temp"] * 100))  # two bytes
+    hum_pct = int(round(messages["hum"]))  # one byte
+    battery = int(round(messages["battery"]))  # one byte
 
-    client.publish("data/metrics", json.dumps({
-        "serialNumber": SERIAL_NUMBER,
-        "temp": messages["temp"]
-    }))
+    frame = b"".join([
+        be_bytes(temp_scaled, 2),
+        be_bytes(hum_pct, 1),
+        be_bytes(battery, 1),
+    ])
+
+    hex_payload = "0x" + frame.hex()  # e.g. 0x092964
+    client.publish(f"custom/sensors/{CUSTOM_DEVICE_NAME}", hex_payload)
 
 
 def main():
-    client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION1, client_id=CLIENT_ID)
-    client.username_pw_set(username=USERNAME, password=PASSWORD)
+    client = mqtt_client.Client(client_id=CLIENT_ID)
+    # client.username_pw_set(username=USERNAME, password=PASSWORD)
     client.on_connect = on_connect
     client.on_message = on_message
     client.connect(BROKER, PORT)
