@@ -178,7 +178,6 @@ def publish(client):
 
 def main():
     client = mqtt_client.Client(client_id=CLIENT_ID)
-    # client.username_pw_set(username=USERNAME, password=PASSWORD)
     client.on_connect = on_connect
     client.on_message = on_message
     client.connect(BROKER, PORT)
