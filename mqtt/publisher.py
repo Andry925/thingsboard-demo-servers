@@ -114,11 +114,12 @@ def on_message(client, userdata, message):
         try:
             json_payload = json.loads(payload)
             request_id = topic.split('/')[-1]
-            light_level = json.dumps(json.dumps({"light_level": light_level}))
-            print('Sending a response message: ' + light_level)
+
+            received_rpc = json.dumps({"light_level": light_level})
+            print('Sending a response message: ' + received_rpc)
             client.publish(f"sensor/{json_payload['deviceName']}/response/{json_payload['methodName']}/{request_id}",
-                           light_level)
-            print('Sent a response message: ' + light_level)
+                           received_rpc)
+            print('Sent a response message: ' + received_rpc)
         except Exception as e:
             print(f"[RPC] bad format to handle: err={e}")
 
