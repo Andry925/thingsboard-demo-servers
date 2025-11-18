@@ -1,4 +1,4 @@
-FROM eclipse-mosquitto AS build
+FROM eclipse-mosquitto:1.6.15 AS build
 
 # Update package lists and install necessary dependencies
 ENV PYTHONUNBUFFERED=1
