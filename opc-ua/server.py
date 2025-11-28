@@ -79,6 +79,24 @@ def get_relay_state(_):
         return ua.Variant(False, ua.VariantType.Boolean)
 
 
+@uamethod
+def hard_reset_sensor_values(parent):
+    groups = (
+        (TEMP_SENSOR_DEFAULTS, "sensor"),
+        (TEMP_SENSOR_DEFAULTS_S, "sensor S"),
+        (TEMP_SENSOR_DEFAULTS_G, "sensor G"),
+    )
+
+    for defaults, label in groups:
+        for var, value in defaults.items():
+            try:
+                var.set_value(value)
+            except Exception as e:
+                print(f"Error resetting {label} values:", e)
+
+    return []
+
+
 class VarSinUpdater(Thread):
     def __init__(self, var):
         Thread.__init__(self)
@@ -130,44 +148,85 @@ if __name__ == "__main__":
     idx = server.register_namespace(uri)
 
     # DEVICES FOR BLACKBOX TESTS ---------------------------------------------------------------------------------------
+    DEFAULT_PRESSURE = 1013.25
+    DEFAULT_SOME_TEXT = "SomeText"
+    DEFAULT_MY_NODE_ID_VALUE = 12.2
+    DEFAULT_ALARM_STATE = True
+
     idx_for_tests = server.register_namespace("http://test.gateway.io")
     test_device = server.nodes.objects.add_object(idx_for_tests, "TempSensor")
-    hum_var = test_device.add_variable("ns=3; s=Humidity", "Humidity", 60.5)
-    hum_var.set_writable()
-    press_var = test_device.add_variable(idx_for_tests, "Pressure", 1013.25)
+    press_var = test_device.add_variable(idx_for_tests, "Pressure", DEFAULT_PRESSURE)
     press_var.set_writable()
-    test_device.add_variable(idx_for_tests, 'SomeText', "SomeText")
-    e = test_device.add_variable(ua.ByteStringNodeId("MyNodeId".encode('utf-8'), namespace=3), "MyNodeId", 12.2)
+    some_text_var = test_device.add_variable(idx_for_tests, 'SomeText', DEFAULT_SOME_TEXT)
+    e = test_device.add_variable(ua.ByteStringNodeId("MyNodeId".encode('utf-8'), namespace=3), "MyNodeId",
+                                 DEFAULT_MY_NODE_ID_VALUE)
     alarm_var = test_device.add_variable(ua.GuidNodeId(uuid.UUID("018dd02c-fd22-754a-b6d3-5fcae91cd38d"), 3), "Alarm",
-                                         True)
+                                         DEFAULT_ALARM_STATE)
     alarm_var.set_writable()
     alarm_var.add_variable(idx_for_tests, "AlarmCode", 1234)
-    hum_var.add_reference(ua.ObjectIds.AnalogItemType, ua.ObjectIds.HasTypeDefinition)
     test_device.add_method(idx_for_tests, "multiply", multiply, [ua.VariantType.Int64, ua.VariantType.Int64],
                            [ua.VariantType.Int64])
 
+    TEMP_SENSOR_DEFAULTS = {
+        press_var: DEFAULT_PRESSURE,
+        some_text_var: DEFAULT_SOME_TEXT,
+        e: DEFAULT_MY_NODE_ID_VALUE,
+        alarm_var: DEFAULT_ALARM_STATE
+    }
+
+    DEFAULT_HUMIDITY_S = 203.5
+    DEFAULT_PRESSURE_S = 1560.25
+    DEFAULT_STATUS_S = "OK"
+    DEFAULT_ALARM_S_STATE = True
+
     test_device_s = server.nodes.objects.add_object("ns=4; s=TempSensor_S", "TempSensor_S")
-    hum_var_1 = test_device_s.add_variable("ns=4; s=Humidity_S", "Humidity", 243.5)
+    hum_var_1 = test_device_s.add_variable("ns=4; s=Humidity_S", "Humidity", DEFAULT_HUMIDITY_S)
     hum_var_1.set_writable()
-    press_var_1 = test_device_s.add_variable(idx_for_tests, "Pressure_S", 23455.25)
+    press_var_1 = test_device_s.add_variable(idx_for_tests, "Pressure_S", DEFAULT_PRESSURE_S)
     press_var_1.set_writable()
-    status_var_1 = test_device_s.add_variable("ns=4; b=Status_S", "Status", "ERROR")
+    status_var_1 = test_device_s.add_variable(ua.ByteStringNodeId(b"Status_S", 4), "Status", DEFAULT_STATUS_S)
     status_var_1.set_writable()
     alarm_var_1 = test_device_s.add_variable(ua.GuidNodeId(uuid.UUID("BAEAF004-1E43-4A06-9EF0-E52010D5CD12"), 4),
-                                             "Alarm", False)
+                                             "Alarm", DEFAULT_ALARM_STATE)
     alarm_var_1.set_writable()
+
+    TEMP_SENSOR_DEFAULTS_S = {
+        hum_var_1: DEFAULT_HUMIDITY_S,
+        press_var_1: DEFAULT_PRESSURE_S,
+        status_var_1: DEFAULT_STATUS_S,
+        alarm_var_1: DEFAULT_ALARM_S_STATE
+    }
+
+    DEFAULT_HUMIDITY_G = 243.5
+    DEFAULT_PRESSURE_G = 23455.25
+    DEFAULT_STATUS_G = "ERROR"
+    DEFAULT_ALARM_G_STATE = False
 
     test_device_g = server.nodes.objects.add_object(
         ua.GuidNodeId(uuid.UUID("018dd02c-fd22-754a-b6d3-5fcae91cd39d"), 5), "TempSensor_G")
-    hum_var_2 = test_device_g.add_variable("ns=5; s=Humidity_S", "Humidity", 243.5)
+
+    hum_var_2 = test_device_g.add_variable("ns=5; s=Humidity_S", "Humidity", DEFAULT_HUMIDITY_G)
     hum_var_2.set_writable()
-    press_var_2 = test_device_g.add_variable(idx_for_tests, "Pressure_S", 23455.25)
+    press_var_2 = test_device_g.add_variable(idx_for_tests, "Pressure_S", DEFAULT_PRESSURE_G)
     press_var_2.set_writable()
-    status_var_2 = test_device_g.add_variable("ns=5; b=Status_S", "Status", "ERROR")
+    status_var_2 = test_device_g.add_variable(ua.ByteStringNodeId(b"Status_S", 5), "Status", DEFAULT_STATUS_S)
     status_var_2.set_writable()
     alarm_var_2 = test_device_g.add_variable(ua.GuidNodeId(uuid.UUID("BAEAF004-1E43-4A06-9EF0-E52010D5CD12"), 5),
-                                             "Alarm", False)
-    alarm_var_1.set_writable()
+                                             "Alarm", DEFAULT_ALARM_G_STATE)
+    alarm_var_2.set_writable()
+    TEMP_SENSOR_DEFAULTS_G = {
+        hum_var_2: DEFAULT_HUMIDITY_G,
+        press_var_2: DEFAULT_PRESSURE_G,
+        status_var_2: DEFAULT_STATUS_G,
+        alarm_var_2: DEFAULT_ALARM_G_STATE
+    }
+    hard_reset_sensor_values = test_device.add_method(
+        idx_for_tests,
+        "hard_reset_sensor_values",
+        hard_reset_sensor_values,
+        [],
+        [])
+
     # ------------------------------------------------------------------------------------------------------------------
 
     # create a new node type we can instantiate in our address space
